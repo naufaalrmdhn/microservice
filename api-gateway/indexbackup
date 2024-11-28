@@ -1,0 +1,41 @@
+const express = require('express');
+const axios = require('axios'); // Menggunakan Axios untuk forward request
+const app = express();
+const PORT = 5000;
+
+// Middleware untuk menangani request JSON
+app.use(express.json());
+
+// Rute API Gateway yang mengarah ke User Service
+app.use('/user', async (req, res) => {
+  try {
+    // Forward request ke user service (misalnya user-service berjalan di http://localhost:3002)
+    const response = await axios({
+      method: req.method,  // Menyesuaikan metode HTTP yang digunakan
+      url: `http://localhost:3000${req.originalUrl}`,  // Sesuaikan URL user service
+      data: req.body,  // Menyalin data body request (jika ada)
+      headers: req.headers,  // Menyalin header request
+    });
+
+    // Kirim response kembali ke client
+    res.status(response.status).json(response.data);
+  } catch (error) {
+    console.error('Error in User Service:', error);
+    res.status(500).send('Error in User Service');
+  }
+});
+
+// Rute API Gateway yang mengarah ke Auth Service
+app.use('/auth', createProxyMiddleware({
+  target: 'http://localhost:3001', // URL Auth-Service
+  changeOrigin: true, // Untuk memodifikasi header Origin jika diperlukan
+  pathRewrite: {
+    '^/auth': '/auth', // Tetap pertahankan prefix /auth
+  },
+}));
+
+
+// Mulai server di port yang diinginkan
+app.listen(PORT, () => {
+  console.log(`API Gateway running on http://localhost:${PORT}`);
+});
